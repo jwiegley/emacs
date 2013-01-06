@@ -2762,6 +2762,19 @@ read1 (Lisp_Object readcharfun, int *pch, bool first_in_list)
 	  make_byte_code (vec);
 	  return tmp;
 	}
+      if (c == '%')
+	{
+	  c = READCHAR;
+	  if (c == '[')
+	    {
+	      Lisp_Object tmp;
+	      tmp = read_vector (readcharfun, 1);
+	      XSETPVECTYPE (XVECTOR(tmp), PVEC_RECORD);
+	      return tmp;
+	    }
+	  UNREAD (c);
+	  invalid_syntax ("#");
+	}
       if (c == '(')
 	{
 	  Lisp_Object tmp;

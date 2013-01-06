@@ -1966,12 +1966,19 @@ print_object (Lisp_Object obj, Lisp_Object printcharfun, bool escapeflag)
       case PVEC_SUB_CHAR_TABLE:
       case PVEC_COMPILED:
       case PVEC_CHAR_TABLE:
+      case PVEC_RECORD:
       case PVEC_NORMAL_VECTOR: ;
 	{
 	  ptrdiff_t size = ASIZE (obj);
 	  if (COMPILEDP (obj))
 	    {
 	      printchar ('#', printcharfun);
+	      size &= PSEUDOVECTOR_SIZE_MASK;
+	    }
+	  if (RECORDP (obj))
+	    {
+	      printchar ('#', printcharfun);
+	      printchar ('%', printcharfun);
 	      size &= PSEUDOVECTOR_SIZE_MASK;
 	    }
 	  if (CHAR_TABLE_P (obj) || SUB_CHAR_TABLE_P (obj))

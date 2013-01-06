@@ -874,6 +874,7 @@ enum pvec_type
   PVEC_TERMINAL,
   PVEC_WINDOW_CONFIGURATION,
   PVEC_SUBR,
+  PVEC_RECORD,
   PVEC_OTHER,            /* Should never be visible to Elisp code.  */
   PVEC_XWIDGET,
   PVEC_XWIDGET_VIEW,
@@ -1407,6 +1408,7 @@ CHECK_VECTOR (Lisp_Object x)
 {
   CHECK_TYPE (VECTORP (x), Qvectorp, x);
 }
+
 
 /* A pseudovector is like a vector, but has other non-Lisp components.  */
 
@@ -2726,6 +2728,24 @@ INLINE bool
 FRAMEP (Lisp_Object a)
 {
   return PSEUDOVECTORP (a, PVEC_FRAME);
+}
+
+INLINE bool
+RECORDP (Lisp_Object a)
+{
+  return PSEUDOVECTORP (a, PVEC_RECORD);
+}
+
+INLINE void
+CHECK_RECORD (Lisp_Object x)
+{
+  CHECK_TYPE (RECORDP (x), Qrecordp, x);
+}
+
+INLINE void
+CHECK_RECORD_TYPE (Lisp_Object x)
+{
+  /* CHECK_SYMBOL (x); */
 }
 
 /* Test for image (image . spec)  */
