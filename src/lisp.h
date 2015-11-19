@@ -468,6 +468,9 @@ enum Lisp_Misc_Type
     Lisp_Misc_Overlay,
     Lisp_Misc_Save_Value,
     Lisp_Misc_Finalizer,
+#ifdef HAVE_MODULES
+    Lisp_Misc_User_Ptr,
+#endif
     /* Currently floats are not a misc type,
        but let's define this in case we want to change that.  */
     Lisp_Misc_Float,
@@ -581,6 +584,12 @@ INLINE bool PROCESSP (Lisp_Object);
 INLINE bool PSEUDOVECTORP (Lisp_Object, int);
 INLINE bool SAVE_VALUEP (Lisp_Object);
 INLINE bool FINALIZERP (Lisp_Object);
+
+#ifdef HAVE_MODULES
+INLINE bool USER_PTRP (Lisp_Object);
+INLINE struct Lisp_User_Ptr *(XUSER_PTR) (Lisp_Object);
+#endif
+
 INLINE void set_sub_char_table_contents (Lisp_Object, ptrdiff_t,
 					      Lisp_Object);
 INLINE bool STRINGP (Lisp_Object);
@@ -2230,6 +2239,18 @@ XSAVE_OBJECT (Lisp_Object obj, int n)
   return XSAVE_VALUE (obj)->data[n].object;
 }
 
+#ifdef HAVE_MODULES
+struct Lisp_User_Ptr
+{
+  ENUM_BF (Lisp_Misc_Type) type : 16;	     /* = Lisp_Misc_User_Ptr */
+  bool_bf gcmarkbit : 1;
+  unsigned spacer : 15;
+
+  void (*finalizer) (void*);
+  void *p;
+};
+#endif
+
 /* A finalizer sentinel.  */
 struct Lisp_Finalizer
   {
@@ -2265,6 +2286,9 @@ union Lisp_Misc
     struct Lisp_Overlay u_overlay;
     struct Lisp_Save_Value u_save_value;
     struct Lisp_Finalizer u_finalizer;
+#ifdef HAVE_MODULES
+    struct Lisp_User_Ptr u_user_ptr;
+#endif
   };
 
 INLINE union Lisp_Misc *
@@ -2313,6 +2337,16 @@ XFINALIZER (Lisp_Object a)
   eassert (FINALIZERP (a));
   return & XMISC (a)->u_finalizer;
 }
+
+#ifdef HAVE_MODULES
+INLINE struct Lisp_User_Ptr *
+XUSER_PTR (Lisp_Object a)
+{
+  eassert (USER_PTRP (a));
+  return & XMISC (a)->u_user_ptr;
+}
+#endif
+
 
 
 /* Forwarding pointer to an int variable.
@@ -2597,6 +2631,14 @@ FINALIZERP (Lisp_Object x)
 {
   return MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Finalizer;
 }
+
+#ifdef HAVE_MODULES
+INLINE bool
+USER_PTRP (Lisp_Object x)
+{
+  return MISCP (x) && XMISCTYPE (x) == Lisp_Misc_User_Ptr;
+}
+#endif
 
 INLINE bool
 AUTOLOADP (Lisp_Object x)
@@ -3104,7 +3146,9 @@ SPECPDL_INDEX (void)
    A call like (throw TAG VAL) searches for a catchtag whose `tag_or_ch'
    member is TAG, and then unbinds to it.  The `val' member is used to
    hold VAL while the stack is unwound; `val' is returned as the value
-   of the catch form.
+   of the catch form.  If there is a handler of type CATCHER_ALL, it will
+   be treated as a handler for all invocations of `throw'; in this case
+   `val' will be set to (TAG . VAL).
 
    All the other members are concerned with restoring the interpreter
    state.
@@ -3112,7 +3156,7 @@ SPECPDL_INDEX (void)
    Members are volatile if their values need to survive _longjmp when
    a 'struct handler' is a local variable.  */
 
-enum handlertype { CATCHER, CONDITION_CASE };
+enum handlertype { CATCHER, CONDITION_CASE, CATCHER_ALL };
 
 struct handler
 {
@@ -3142,25 +3186,15 @@ struct handler
 
 /* Fill in the components of c, and put it on the list.  */
 #define PUSH_HANDLER(c, tag_ch_val, handlertype)	\
-  if (handlerlist->nextfree)				\
-    (c) = handlerlist->nextfree;			\
-  else							\
-    {							\
-      (c) = xmalloc (sizeof (struct handler));		\
-      (c)->nextfree = NULL;				\
-      handlerlist->nextfree = (c);			\
-    }							\
-  (c)->type = (handlertype);				\
-  (c)->tag_or_ch = (tag_ch_val);			\
-  (c)->val = Qnil;					\
-  (c)->next = handlerlist;				\
-  (c)->lisp_eval_depth = lisp_eval_depth;		\
-  (c)->pdlcount = SPECPDL_INDEX ();			\
-  (c)->poll_suppress_count = poll_suppress_count;	\
-  (c)->interrupt_input_blocked = interrupt_input_blocked;\
-  (c)->byte_stack = byte_stack_list;			\
-  handlerlist = (c);
+  push_handler(&(c), (tag_ch_val), (handlertype))
 
+extern void push_handler (struct handler **c, Lisp_Object tag_ch_val,
+                          enum handlertype handlertype);
+
+/* Like push_handler, but don't signal if the handler could not be
+   allocated.  Instead return false in that case. */
+extern bool push_handler_nosignal (struct handler **c, Lisp_Object tag_ch_val,
+                                   enum handlertype handlertype);
 
 extern Lisp_Object memory_signal_data;
 
@@ -3407,7 +3441,8 @@ Lisp_Object make_hash_table (struct hash_table_test, Lisp_Object, Lisp_Object,
 ptrdiff_t hash_lookup (struct Lisp_Hash_Table *, Lisp_Object, EMACS_UINT *);
 ptrdiff_t hash_put (struct Lisp_Hash_Table *, Lisp_Object, Lisp_Object,
 		    EMACS_UINT);
-extern struct hash_table_test hashtest_eql, hashtest_equal;
+void hash_remove_from_table (struct Lisp_Hash_Table *, Lisp_Object);
+extern struct hash_table_test hashtest_eq, hashtest_eql, hashtest_equal;
 extern void validate_subarray (Lisp_Object, Lisp_Object, Lisp_Object,
 			       ptrdiff_t, ptrdiff_t *, ptrdiff_t *);
 extern Lisp_Object substring_both (Lisp_Object, ptrdiff_t, ptrdiff_t,
@@ -3877,6 +3912,15 @@ Lisp_Object backtrace_top_function (void);
 extern bool let_shadows_buffer_binding_p (struct Lisp_Symbol *symbol);
 extern bool let_shadows_global_binding_p (Lisp_Object symbol);
 
+#ifdef HAVE_MODULES
+/* Defined in alloc.c.  */
+extern Lisp_Object make_user_ptr (void (*finalizer) (void*), void *p);
+
+/* Defined in module.c.  */
+extern void module_init (void);
+extern void mark_modules (void);
+extern void syms_of_module (void);
+#endif
 
 /* Defined in editfns.c.  */
 extern void insert1 (Lisp_Object);
