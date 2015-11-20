@@ -3320,9 +3320,10 @@ if test "${with_modules}" != "no"; then
 fi
 
 if test "${HAVE_MODULES}" = yes; then
-   MODULES_OBJ="dynlib.o module.o"
+   MODULES_OBJ="dynlib.o emacs-module.o"
    AC_DEFINE(HAVE_MODULES, 1, [Define to 1 if dynamic modules are enabled])
-   AC_DEFINE_UNQUOTED(MODULES_SUFFIX, "$MODULES_SUFFIX", [System extension for dynamic libraries])
+   AC_DEFINE_UNQUOTED(MODULES_SUFFIX, "$MODULES_SUFFIX",
+     [System extension for dynamic libraries])
 fi
 AC_SUBST(MODULES_OBJ)
 AC_SUBST(LIBMODULES)
