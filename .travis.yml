@@ -16,7 +16,7 @@ addons:
     notification_email: johnw@gnu.org
     build_command_prepend: "./autogen.sh && ./configure --prefix=/tmp/prefix"
     build_command:   "make bootstrap && make install"
-    branch_pattern: master
+    branch_pattern: coverity
   apt:
    packages:
      - gcc-multilib
