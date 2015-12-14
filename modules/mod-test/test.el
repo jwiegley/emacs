@@ -28,7 +28,33 @@
 ;;
 
 (ert-deftest mod-test-sum-test ()
-  (should (= (mod-test-sum 1 2) 3)))
+  (should (= (mod-test-sum 1 2) 3))
+  (let ((descr (should-error (mod-test-sum 1 2 3))))
+    (should (eq (car descr) 'wrong-number-of-arguments))
+    (should (stringp (nth 1 descr)))
+    (should (eq 0
+                (string-match
+                 (concat "#<module function "
+                         "\\(at \\(0x\\)?[0-9a-fA-F]+\\( from .*\\)?"
+                         "\\|Fmod_test_sum from .*\\)>")
+                 (nth 1 descr))))
+    (should (= (nth 2 descr) 3)))
+  (should-error (mod-test-sum "1" 2) :type 'wrong-type-argument)
+  (should-error (mod-test-sum 1 "2") :type 'wrong-type-argument)
+  ;; The following tests are for 32-bit build --with-wide-int.
+  (should (= (mod-test-sum -1 most-positive-fixnum)
+             (1- most-positive-fixnum)))
+  (should (= (mod-test-sum 1 most-negative-fixnum)
+             (1+ most-negative-fixnum)))
+  (when (< #x1fffffff most-positive-fixnum)
+    (should (= (mod-test-sum 1 #x1fffffff)
+               (1+ #x1fffffff)))
+    (should (= (mod-test-sum -1 #x20000000)
+               #x1fffffff)))
+  (should-error (mod-test-sum 1 most-positive-fixnum)
+                :type 'overflow-error)
+  (should-error (mod-test-sum -1 most-negative-fixnum)
+                :type 'overflow-error))
 
 (ert-deftest mod-test-sum-docstring ()
   (should (string= (documentation 'mod-test-sum) "Return A + B")))

@@ -26,7 +26,8 @@ int plugin_is_GPL_compatible;
 
 /* Always return symbol 't'.  */
 static emacs_value
-Fmod_test_return_t (emacs_env *env, int nargs, emacs_value args[], void *data)
+Fmod_test_return_t (emacs_env *env, ptrdiff_t nargs, emacs_value args[],
+		    void *data)
 {
   return env->intern (env, "t");
 }
@@ -39,8 +40,10 @@ sum (intmax_t a, intmax_t b)
 }
 
 static emacs_value
-Fmod_test_sum (emacs_env *env, int nargs, emacs_value args[], void *data)
+Fmod_test_sum (emacs_env *env, ptrdiff_t nargs, emacs_value args[], void *data)
 {
+  assert (nargs == 2);
+
   intmax_t a = env->extract_integer (env, args[0]);
   intmax_t b = env->extract_integer (env, args[1]);
 
@@ -52,31 +55,33 @@ Fmod_test_sum (emacs_env *env, int nargs, emacs_value args[], void *data)
 
 /* Signal '(error 56).  */
 static emacs_value
-Fmod_test_signal (emacs_env *env, int nargs, emacs_value args[], void *data)
+Fmod_test_signal (emacs_env *env, ptrdiff_t nargs, emacs_value args[],
+		  void *data)
 {
   assert (env->non_local_exit_check (env) == emacs_funcall_exit_return);
   env->non_local_exit_signal (env, env->intern (env, "error"),
 			      env->make_integer (env, 56));
-  return NULL;
+  return env->intern (env, "nil");
 }
 
 
 /* Throw '(tag 65).  */
 static emacs_value
-Fmod_test_throw (emacs_env *env, int nargs, emacs_value args[], void *data)
+Fmod_test_throw (emacs_env *env, ptrdiff_t nargs, emacs_value args[],
+		 void *data)
 {
   assert (env->non_local_exit_check (env) == emacs_funcall_exit_return);
   env->non_local_exit_throw (env, env->intern (env, "tag"),
 			     env->make_integer (env, 65));
-  return NULL;
+  return env->intern (env, "nil");
 }
 
 
 /* Call argument function, catch all non-local exists and return
    either normal result or a list describing the non-local exit.  */
 static emacs_value
-Fmod_test_non_local_exit_funcall (emacs_env *env, int nargs, emacs_value args[],
-				  void *data)
+Fmod_test_non_local_exit_funcall (emacs_env *env, ptrdiff_t nargs,
+				  emacs_value args[], void *data)
 {
   assert (nargs == 1);
   emacs_value result = env->funcall (env, args[0], 0, NULL);
@@ -111,9 +116,9 @@ Fmod_test_non_local_exit_funcall (emacs_env *env, int nargs, emacs_value args[],
 }
 
 
-/* Return a global referrence.  */
+/* Return a global reference.  */
 static emacs_value
-Fmod_test_globref_make (emacs_env *env, int nargs, emacs_value args[],
+Fmod_test_globref_make (emacs_env *env, ptrdiff_t nargs, emacs_value args[],
 			void *data)
 {
   /* Make a big string and make it global.  */
@@ -130,7 +135,7 @@ Fmod_test_globref_make (emacs_env *env, int nargs, emacs_value args[],
 /* Return a copy of the argument string where every 'a' is replaced
    with 'b'.  */
 static emacs_value
-Fmod_test_string_a_to_b (emacs_env *env, int nargs, emacs_value args[],
+Fmod_test_string_a_to_b (emacs_env *env, ptrdiff_t nargs, emacs_value args[],
 			 void *data)
 {
   emacs_value lisp_str = args[0];
@@ -158,18 +163,10 @@ struct super_struct
   char large_unused_buffer[512];
 };
 
-/* Associated finalizer.  */
-static void
-finalizer (void *p)
-{
-  if (p)
-    free (p);
-}
-
 /* Return a new user-pointer to a super_struct, with amazing_int set
    to the passed parameter.  */
 static emacs_value
-Fmod_test_userptr_make (emacs_env *env, int nargs, emacs_value args[],
+Fmod_test_userptr_make (emacs_env *env, ptrdiff_t nargs, emacs_value args[],
 			void *data)
 {
   struct super_struct *p = calloc (1, sizeof *p);
@@ -179,7 +176,8 @@ Fmod_test_userptr_make (emacs_env *env, int nargs, emacs_value args[],
 
 /* Return the amazing_int of a passed 'user-pointer to a super_struct'.  */
 static emacs_value
-Fmod_test_userptr_get (emacs_env *env, int nargs, emacs_value args[], void *data)
+Fmod_test_userptr_get (emacs_env *env, ptrdiff_t nargs, emacs_value args[],
+		       void *data)
 {
   struct super_struct *p = env->get_user_ptr (env, args[0]);
   return env->make_integer (env, p->amazing_int);
@@ -188,7 +186,8 @@ Fmod_test_userptr_get (emacs_env *env, int nargs, emacs_value args[], void *data
 
 /* Fill vector in args[0] with value in args[1].  */
 static emacs_value
-Fmod_test_vector_fill (emacs_env *env, int nargs, emacs_value args[], void *data)
+Fmod_test_vector_fill (emacs_env *env, ptrdiff_t nargs, emacs_value args[],
+		       void *data)
 {
   emacs_value vec = args[0];
   emacs_value val = args[1];
@@ -202,7 +201,8 @@ Fmod_test_vector_fill (emacs_env *env, int nargs, emacs_value args[], void *data
 /* Return whether all elements of vector in args[0] are 'eq' to value
    in args[1].  */
 static emacs_value
-Fmod_test_vector_eq (emacs_env *env, int nargs, emacs_value args[], void *data)
+Fmod_test_vector_eq (emacs_env *env, ptrdiff_t nargs, emacs_value args[],
+		     void *data)
 {
   emacs_value vec = args[0];
   emacs_value val = args[1];

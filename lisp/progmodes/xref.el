@@ -201,20 +201,21 @@ LENGTH is the match length, in characters."
 
 ;;; API
 
-;; We make the etags backend the default for now, until something
-;; better comes along.
-(defvar xref-backend-functions (list #'xref--etags-backend)
+(defvar xref-backend-functions nil
   "Special hook to find the xref backend for the current context.
 Each functions on this hook is called in turn with no arguments
 and should return either nil to mean that it is not applicable,
 or an xref backend, which is a value to be used to dispatch the
 generic functions.")
 
+;; We make the etags backend the default for now, until something
+;; better comes along.  Use APPEND so that any `add-hook' calls made
+;; before this package is loaded put new items before this one.
+(add-hook 'xref-backend-functions #'etags--xref-backend t)
+
 ;;;###autoload
 (defun xref-find-backend ()
   (run-hook-with-args-until-success 'xref-backend-functions))
-
-(defun xref--etags-backend () 'etags)
 
 (cl-defgeneric xref-backend-definitions (backend identifier)
   "Find definitions of IDENTIFIER.

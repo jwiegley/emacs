@@ -228,7 +228,6 @@ Blank lines separate paragraphs.  Semicolons start comments.
 
 \\{emacs-lisp-mode-map}"
   :group 'lisp
-  (defvar xref-backend-functions)
   (defvar project-library-roots-function)
   (lisp-mode-variables nil nil 'elisp)
   (add-hook 'after-load-functions #'elisp--font-lock-flush-elisp-buffers)
@@ -576,8 +575,9 @@ It can be quoted, or be inside a quoted form."
                                        " " (cadr table-etc)))
                     (cddr table-etc)))))))))
 
-(define-obsolete-function-alias
-  'lisp-completion-at-point 'elisp-completion-at-point "25.1")
+(defun lisp-completion-at-point (_predicate)
+  (declare (obsolete elisp-completion-at-point "25.1"))
+  (elisp-completion-at-point))
 
 ;;; Xref backend
 
@@ -833,8 +833,9 @@ non-nil result supercedes the xrefs produced by
   (xref-elisp-location-file l))
 
 (defun elisp-library-roots ()
-  (defvar package-user-dir)
-  (cons package-user-dir load-path))
+  (if (boundp 'package-user-dir)
+      (cons package-user-dir load-path)
+    load-path))
 
 ;;; Elisp Interaction mode
 

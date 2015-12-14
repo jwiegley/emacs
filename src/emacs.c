@@ -761,6 +761,9 @@ main (int argc, char **argv)
      names between UTF-8 and the system's ANSI codepage.  */
   maybe_load_unicows_dll ();
 #endif
+  /* This has to be done before module_init is called below, so that
+     the latter could use the thread ID of the main thread.  */
+  w32_init_main_thread ();
 #endif
 
 #ifdef RUN_TIME_REMAP

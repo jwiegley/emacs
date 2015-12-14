@@ -357,7 +357,7 @@ error !;
 # define lisp_h_XINT(a) (XLI (a) >> INTTYPEBITS)
 # define lisp_h_XSYMBOL(a) \
     (eassert (SYMBOLP (a)), \
-     (struct Lisp_Symbol *) ((uintptr_t) XLI (a) - Lisp_Symbol \
+     (struct Lisp_Symbol *) ((intptr_t) XLI (a) - Lisp_Symbol \
 			     + (char *) lispsym))
 # define lisp_h_XTYPE(a) ((enum Lisp_Type) (XLI (a) & ~VALMASK))
 # define lisp_h_XUNTAG(a, type) ((void *) (intptr_t) (XLI (a) - (type)))
@@ -369,6 +369,12 @@ error !;
 #if (defined __NO_INLINE__ \
      && ! defined __OPTIMIZE__ && ! defined __OPTIMIZE_SIZE__ \
      && ! (defined INLINING && ! INLINING))
+# define DEFINE_KEY_OPS_AS_MACROS true
+#else
+# define DEFINE_KEY_OPS_AS_MACROS false
+#endif
+
+#if DEFINE_KEY_OPS_AS_MACROS
 # define XLI(o) lisp_h_XLI (o)
 # define XIL(i) lisp_h_XIL (i)
 # define CHECK_LIST_CONS(x, y) lisp_h_CHECK_LIST_CONS (x, y)
@@ -713,9 +719,15 @@ struct Lisp_Symbol
 #define DEFUN_ARGS_8	(Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
 			 Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object)
 
-/* Yield an integer that contains TAG along with PTR.  */
+/* Yield a signed integer that contains TAG along with PTR.
+
+   Sign-extend pointers when USE_LSB_TAG (this simplifies emacs-module.c),
+   and zero-extend otherwise (that’s a bit faster here).
+   Sign extension matters only when EMACS_INT is wider than a pointer.  */
 #define TAG_PTR(tag, ptr) \
-  ((USE_LSB_TAG ? (tag) : (EMACS_UINT) (tag) << VALBITS) + (uintptr_t) (ptr))
+  (USE_LSB_TAG \
+   ? (intptr_t) (ptr) + (tag) \
+   : (EMACS_INT) (((EMACS_UINT) (tag) << VALBITS) + (uintptr_t) (ptr)))
 
 /* Yield an integer that contains a symbol tag along with OFFSET.
    OFFSET should be the offset in bytes from 'lispsym' to the symbol.  */
@@ -847,7 +859,9 @@ INLINE EMACS_INT
 INLINE EMACS_INT
 (XFASTINT) (Lisp_Object a)
 {
-  return lisp_h_XFASTINT (a);
+  EMACS_INT n = lisp_h_XFASTINT (a);
+  eassume (0 <= n);
+  return n;
 }
 
 INLINE struct Lisp_Symbol *
@@ -915,17 +929,8 @@ XFASTINT (Lisp_Object a)
 {
   EMACS_INT int0 = Lisp_Int0;
   EMACS_INT n = USE_LSB_TAG ? XINT (a) : XLI (a) - (int0 << VALBITS);
-  eassert (0 <= n);
+  eassume (0 <= n);
   return n;
-}
-
-/* Extract A's value as a symbol.  */
-INLINE struct Lisp_Symbol *
-XSYMBOL (Lisp_Object a)
-{
-  uintptr_t i = (uintptr_t) XUNTAG (a, Lisp_Symbol);
-  void *p = (char *) lispsym + i;
-  return p;
 }
 
 /* Extract A's type.  */
@@ -934,6 +939,16 @@ XTYPE (Lisp_Object a)
 {
   EMACS_UINT i = XLI (a);
   return USE_LSB_TAG ? i & ~VALMASK : i >> VALBITS;
+}
+
+/* Extract A's value as a symbol.  */
+INLINE struct Lisp_Symbol *
+XSYMBOL (Lisp_Object a)
+{
+  eassert (SYMBOLP (a));
+  intptr_t i = (intptr_t) XUNTAG (a, Lisp_Symbol);
+  void *p = (char *) lispsym + i;
+  return p;
 }
 
 /* Extract A's pointer value, assuming A's type is TYPE.  */
@@ -1536,7 +1551,16 @@ aref_addr (Lisp_Object array, ptrdiff_t idx)
 INLINE ptrdiff_t
 ASIZE (Lisp_Object array)
 {
-  return XVECTOR (array)->header.size;
+  ptrdiff_t size = XVECTOR (array)->header.size;
+  eassume (0 <= size);
+  return size;
+}
+
+INLINE ptrdiff_t
+gc_asize (Lisp_Object array)
+{
+  /* Like ASIZE, but also can be used in the garbage collector.  */
+  return XVECTOR (array)->header.size & ~ARRAY_MARK_FLAG;
 }
 
 INLINE void
@@ -1551,7 +1575,7 @@ gc_aset (Lisp_Object array, ptrdiff_t idx, Lisp_Object val)
 {
   /* Like ASET, but also can be used in the garbage collector:
      sweep_weak_table calls set_hash_key etc. while the table is marked.  */
-  eassert (0 <= idx && idx < (ASIZE (array) & ~ARRAY_MARK_FLAG));
+  eassert (0 <= idx && idx < gc_asize (array));
   XVECTOR (array)->contents[idx] = val;
 }
 
@@ -1933,20 +1957,21 @@ struct Lisp_Hash_Table
 };
 
 
-INLINE struct Lisp_Hash_Table *
-XHASH_TABLE (Lisp_Object a)
-{
-  return XUNTAG (a, Lisp_Vectorlike);
-}
-
-#define XSET_HASH_TABLE(VAR, PTR) \
-     (XSETPSEUDOVECTOR (VAR, PTR, PVEC_HASH_TABLE))
-
 INLINE bool
 HASH_TABLE_P (Lisp_Object a)
 {
   return PSEUDOVECTORP (a, PVEC_HASH_TABLE);
 }
+
+INLINE struct Lisp_Hash_Table *
+XHASH_TABLE (Lisp_Object a)
+{
+  eassert (HASH_TABLE_P (a));
+  return XUNTAG (a, Lisp_Vectorlike);
+}
+
+#define XSET_HASH_TABLE(VAR, PTR) \
+     (XSETPSEUDOVECTOR (VAR, PTR, PVEC_HASH_TABLE))
 
 /* Value is the key part of entry IDX in hash table H.  */
 INLINE Lisp_Object
@@ -3906,7 +3931,6 @@ extern Lisp_Object make_user_ptr (void (*finalizer) (void*), void *p);
 
 /* Defined in emacs-module.c.  */
 extern void module_init (void);
-extern void mark_modules (void);
 extern void syms_of_module (void);
 #endif
 

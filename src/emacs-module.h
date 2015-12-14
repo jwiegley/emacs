@@ -26,8 +26,19 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #if defined __cplusplus && __cplusplus >= 201103L
 # define EMACS_NOEXCEPT noexcept
+
+/* Function prototype for module user-pointer finalizers.
+
+   NOTE: C++11 15.4: An exception-specification shall not appear in a
+                     typedef declaration or alias-declaration.
+
+*/
+void emacs_dummy_finalizer_function (void *) noexcept;
+typedef decltype(emacs_dummy_finalizer_function) *emacs_finalizer_function;
+
 #else
 # define EMACS_NOEXCEPT
+typedef void (*emacs_finalizer_function) (void *);
 #endif
 
 #ifdef __cplusplus
@@ -37,7 +48,8 @@ extern "C" {
 /* Current environment.  */
 typedef struct emacs_env_25 emacs_env;
 
-/* Opaque structure pointer representing an Emacs Lisp value.  */
+/* Opaque pointer representing an Emacs Lisp value.
+   BEWARE: Do not assume NULL is a valid value!  */
 typedef struct emacs_value_tag *emacs_value;
 
 enum emacs_arity { emacs_variadic_function = -2 };
@@ -62,9 +74,6 @@ typedef int (*emacs_init_function) (struct emacs_runtime *ert);
 /* Function prototype for the module Lisp functions.  */
 typedef emacs_value (*emacs_subr) (emacs_env *env, ptrdiff_t nargs,
 				   emacs_value args[], void *data);
-
-/* Function prototype for module user-pointer finalizers.  */
-typedef void (*emacs_finalizer_function) (void *);
 
 /* Possible Emacs function call outcomes.  */
 enum emacs_funcall_exit
@@ -175,17 +184,17 @@ struct emacs_env_25
 
   /* Embedded pointer type.  */
   emacs_value (*make_user_ptr) (emacs_env *env,
-				void (*fin) (void *) EMACS_NOEXCEPT,
+				emacs_finalizer_function fin,
 				void *ptr);
 
   void *(*get_user_ptr) (emacs_env *env, emacs_value uptr);
   void (*set_user_ptr) (emacs_env *env, emacs_value uptr, void *ptr);
 
-  void (*(*get_user_finalizer) (emacs_env *env, emacs_value uptr))
-    (void *) EMACS_NOEXCEPT;
+  emacs_finalizer_function (*get_user_finalizer) (emacs_env *env,
+						  emacs_value uptr);
   void (*set_user_finalizer) (emacs_env *env,
 			      emacs_value uptr,
-			      void (*fin) (void *) EMACS_NOEXCEPT);
+			      emacs_finalizer_function fin);
 
   /* Vector functions.  */
   emacs_value (*vec_get) (emacs_env *env, emacs_value vec, ptrdiff_t i);
@@ -195,6 +204,9 @@ struct emacs_env_25
 
   ptrdiff_t (*vec_size) (emacs_env *env, emacs_value vec);
 };
+
+/* Every module should define a function as follows.  */
+extern int emacs_module_init (struct emacs_runtime *ert);
 
 #ifdef __cplusplus
 }
