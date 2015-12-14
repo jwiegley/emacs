@@ -2,7 +2,21 @@ language: c
 compiler:
    - gcc
 
+env:
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   #   via the "travis encrypt" command using the project repo's public key
+   - secure: "C8Z1t9WCSHEO/y93gNMDEX+oA/sZYml7iAiaWx4VZtuRdZk1EtpFqKOQcKzmK952MzSCT4f2yq/H9g7GY/Fyjjl7L/cXHrc9xQRoKC0ZRZfZqjqyJRx7u5TJGsH/T59MTNFSOaEi6eZeNZZ8yDJRCMH4/+2ojl9ryy6s0bM2GNzUx6gM/YChsXY5d9dzQzmKtWcMERFyI9+4pQ7D/1A1WgocJFljlcIkQXu5brHtCi69JiAo4ZqIqg7QH37YdPhZA7zeagJFCleUDrrhup24ZVP2OD5dZh+j2JBtdJhe+/JFQ6dTL9l/yMAljjmMiUik1vx4rTb0qWF2ZKywj+KwlB25wJMJ/6rOB124H5PKufPonamkeqhr8souIy8eLV70ONLSACvB0AYn5Fq1zfcDouJ+XCsg8eoYVNDWatpYdzeAbSzjmhOLm8gK4euhyrXaUDBCF3/iXKu05jzbGt3TfBeHTKm8gNnoELrMNMnLVC6mHmbY0f9HI0fJa3oSVn6HBBwWWsmauDUvmvLA8gzuZlckJNDZFTqsD541P07+ufq+crZGL0Y57L3MefQbQTONsUIvc6x9/KchrP4J+LaNNbBmcQUSazsGTkvHh/HOV6enVzt7h4lXQjJFYZ0UAXCF74nc0qI/dW0VnC6MpKo7RZUH0EC8FINVyOjdpzS8RBc="
+
 addons:
+  coverity_scan:
+    project:
+      name: "emacs"
+      description: "A popular text editor used mainly on Unix-based systems by programmers"
+    notification_email: johnw@gnu.org
+    build_command_prepend: "./autogen.sh && ./configure --prefix=/tmp/prefix"
+    build_command:   "make bootstrap && make install"
+    branch_pattern: master
   apt:
    packages:
      - gcc-multilib
