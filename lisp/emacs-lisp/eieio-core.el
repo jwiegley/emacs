@@ -122,7 +122,7 @@ Currently under control of this var:
     (length (cl-struct-slot-info 'eieio--object))))
 
 (defsubst eieio--object-class (obj)
-  (symbol-value (eieio--object-class-tag obj)))
+  (eieio--object-class-tag obj))
 
 
 ;;; Important macros used internally in eieio.
@@ -166,13 +166,7 @@ Return nil if that option doesn't exist."
 
 (defun eieio-object-p (obj)
   "Return non-nil if OBJ is an EIEIO object."
-  (and (vectorp obj)
-       (> (length obj) 0)
-       (let ((tag (eieio--object-class-tag obj)))
-         (and (symbolp tag)
-              ;; (eq (symbol-function tag) :quick-object-witness-check)
-              (boundp tag)
-              (eieio--class-p (symbol-value tag))))))
+  (eieio--class-p (type-of obj)))
 
 (define-obsolete-function-alias 'object-p 'eieio-object-p "25.1")
 
@@ -496,18 +490,10 @@ See `defclass' for more information."
     (if clearparent (setf (eieio--class-parents newc) nil))
 
     ;; Create the cached default object.
-    (let ((cache (make-vector (+ (length (eieio--class-slots newc))
+    (let ((cache (make-record newc
+                              (+ (length (eieio--class-slots newc))
                                  (eval-when-compile eieio--object-num-slots))
-                              nil))
-          ;; We don't strictly speaking need to use a symbol, but the old
-          ;; code used the class's name rather than the class's object, so
-          ;; we follow this preference for using a symbol, which is probably
-          ;; convenient to keep the printed representation of such Elisp
-          ;; objects readable.
-          (tag (intern (format "eieio-class-tag--%s" cname))))
-      (set tag newc)
-      (fset tag :quick-object-witness-check)
-      (setf (eieio--object-class-tag cache) tag)
+                              nil)))
       (let ((eieio-skip-typecheck t))
 	;; All type-checking has been done to our satisfaction
 	;; before this call.  Don't waste our time in this call..
@@ -1060,9 +1046,9 @@ method invocation orders of the involved classes."
   ;; part of the dispatch code.
   50 #'cl--generic-struct-tag
   (lambda (tag &rest _)
-    (and (symbolp tag) (boundp tag) (eieio--class-p (symbol-value tag))
+    (and (eieio--class-p tag)
          (mapcar #'eieio--class-name
-                 (eieio--class-precedence-list (symbol-value tag))))))
+                 (eieio--class-precedence-list tag)))))
 
 (cl-defmethod cl-generic-generalizers :extra "class" (specializer)
   "Support for dispatch on types defined by EIEIO's `defclass'."
