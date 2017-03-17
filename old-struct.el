@@ -12,3 +12,5 @@
 ;;(cl-struct-p (foo))
 ;;(memq (aref (foo) 0) cl-struct-cl-structure-object-tags)
 ;;(setq old-struct-compat t)
+;;(type-of [old])
+;;(type-of [cl-struct-old])
