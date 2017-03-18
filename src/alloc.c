@@ -3406,7 +3406,10 @@ allocate_record (int count)
 
 
 DEFUN ("make-record", Fmake_record, Smake_record, 3, 3, 0,
-       doc: /* Create a new record of type TYPE with SLOTS elements, each initialized to INIT.  */)
+       doc: /* Create a new record.
+TYPE is its type as returned by `type-of'.  SLOTS is the number of
+slots, each initialized to INIT.  The number of slots, including the
+type slot, must fit in PSEUDOVECTOR_SIZE_BITS.  */)
   (Lisp_Object type, Lisp_Object slots, Lisp_Object init)
 {
   Lisp_Object record;
@@ -3428,9 +3431,12 @@ DEFUN ("make-record", Fmake_record, Smake_record, 3, 3, 0,
 
 
 DEFUN ("record", Frecord, Srecord, 1, MANY, 0,
-       doc: /* Return a newly created record of type TYPE the rest of the arguments as slots.
-Any number of slots, even zero slots, are allowed.
-usage: (record TYPE &rest SLOTS)  */)
+       doc: /* Create a new record.
+TYPE is its type as returned by `type-of'.  SLOTS is used to
+initialize the record slots with shallow copies of the arguments.  The
+number of slots, including the type slot, must fit in
+PSEUDOVECTOR_SIZE_BITS.
+usage: (record TYPE &rest SLOTS) */)
   (ptrdiff_t nargs, Lisp_Object *args)
 {
   struct Lisp_Vector *p = allocate_record (nargs);
@@ -3447,7 +3453,7 @@ usage: (record TYPE &rest SLOTS)  */)
 
 
 DEFUN ("copy-record", Fcopy_record, Scopy_record, 1, 1, 0,
-       doc: /* Shallow copy of a record.  */)
+       doc: /* Return a new record that is a shallow copy of the argument RECORD.  */)
   (Lisp_Object record)
 {
   CHECK_RECORD (record);
