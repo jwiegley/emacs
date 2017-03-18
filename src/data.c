@@ -201,8 +201,7 @@ DEFUN ("null", Fnull, Snull, 1, 1, 0,
   return Qnil;
 }
 
-static const char *old_struct_prefix = "cl-struct-";
-static int old_struct_prefix_length;
+static const char old_struct_prefix[] = "cl-struct-";
 
 static int
 vector_struct_p (Lisp_Object object)
@@ -214,7 +213,7 @@ vector_struct_p (Lisp_Object object)
   return SYMBOLP (type)
     && strncmp (SDATA (SYMBOL_NAME (type)),
 		old_struct_prefix,
-		old_struct_prefix_length) == 0;
+		sizeof old_struct_prefix - 1) == 0;
 }
 
 static Lisp_Object
@@ -3899,8 +3898,7 @@ syms_of_data (void)
 
   DEFVAR_BOOL ("old-struct-compat", old_struct_compat,
 	       doc: /* Non-nil means hack for old structs is in effect.  */);
-  old_struct_compat = 0;
-  old_struct_prefix_length = strlen (old_struct_prefix);
+  old_struct_compat = false;
 
   DEFSYM (Qwatchers, "watchers");
   DEFSYM (Qmakunbound, "makunbound");
