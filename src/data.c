@@ -3897,7 +3897,9 @@ syms_of_data (void)
   make_symbol_constant (intern_c_string ("most-negative-fixnum"));
 
   DEFVAR_BOOL ("old-struct-compat", old_struct_compat,
-	       doc: /* Non-nil means hack for old structs is in effect.  */);
+	       doc: /* Non-nil means try to be compatible with old structs.
+If a vector has a symbol in its first slot, and that symbol has a prefix
+`cl-struct-', `type-of` will return that symbol as the type of the vector.  */);
   old_struct_compat = false;
 
   DEFSYM (Qwatchers, "watchers");
